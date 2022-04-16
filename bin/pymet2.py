@@ -16,7 +16,7 @@ else:
 rf = pymetar.ReportFetcher(station)
 rep = rf.FetchReport()
 rp = pymetar.ReportParser()
-pr = rp.ParseReport(rep.decode())
+pr = rp.ParseReport(rep)
 
 print("--------- Full report ---------")
 print(pr.fullreport)

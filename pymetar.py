@@ -22,9 +22,7 @@ included weather information.
 #
 import re
 
-import urllib.request  # noqa: E402
-import urllib.error    # noqa: E402
-import urllib.parse    # noqa: E402
+import requests
 
 __author__ = "klausman-pymetar@schwarzvogel.de"
 
@@ -849,7 +847,7 @@ class ReportParser:
             self.Report = MetarReport
 
         try:
-            lines = self.Report.fullreport.decode().split("\n")
+            lines = self.Report.fullreport.split("\n")
         except UnicodeDecodeError:
             raise GarbledReportException(
                 "Report is not valid ASCII or Unicode.")
@@ -1085,34 +1083,20 @@ class ReportFetcher:
             raise EmptyIDException(
                 "No ID given on init and FetchReport().")
         elif StationCode is not None:
-            self.stationid = StationCode
+            self.stationid = StationCode.upper()
 
-        self.stationid = self.stationid.upper()
         self.reporturl = "%s%s.TXT" % (self.baseurl, self.stationid)
 
         if proxy:
-            p_dict = {'http': proxy}
-            p_handler = urllib.request.ProxyHandler(p_dict)
-            opener = urllib.request.build_opener(
-                p_handler, urllib.request.HTTPHandler)
-            urllib.request.install_opener(opener)
+            fn = requests.get(self.reporturl, proxies={'http': proxy, 'https': proxy})
         else:
-            urllib.request.install_opener(
-                urllib.request.build_opener(urllib.request.ProxyHandler,
-                                            urllib.request.HTTPHandler))
-
-        try:
-            fn = urllib.request.urlopen(self.reporturl)
-        except urllib.error.HTTPError as why:
-            raise NetworkException(why)
+            fn = requests.get(self.reporturl)
+        if fn.status_code != 200:
+            raise NetworkException(
+                "Could not fetch METAR report: %s" % (fn.status_code))
 
         # Dump entire report in a variable
-        self.fullreport = fn.read()
-
-        if fn.status != 200:
-            raise NetworkException(
-                "Could not fetch METAR report: %s" % (fn.status))
-
+        self.fullreport = fn.text
         report = WeatherReport(self.stationid)
         report.reporturl = self.reporturl
         report.fullreport = self.fullreport
