@@ -1,11 +1,14 @@
+#!/usr/bin/env python3
 # -*- coding: utf8 -*-
 # pylint: disable-msg=C0103 # Disable naming style messages
-# Pymetar (c) 2002-2018 Tobias Klausmann
 """
 PyMETAR is a python module and command line tool designed to fetch Metar
 reports from the NOAA (https://www.noaa.gov) and allow access to the
 included weather information.
 """
+# pymetar (C) 2022 Sylvan Butler
+# Pymetar (c) 2002-2018 Tobias Klausmann
+#
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
 # Free Software Foundation; either version 2 of the License, or (at your
@@ -19,13 +22,12 @@ included weather information.
 # You should have received a copy of the GNU General Public License along
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA."""
-#
-import re
 
+import re
 import requests
 
-__author__ = "sylvan butler based on work by klausman-pymetar@schwarzvogel.de"
 
+__author__ = "sylvan butler based on work by klausman-pymetar@schwarzvogel.de"
 __version__ = "2.0"
 
 CLOUD_RE_STR = (r"^(CAVOK|CLR|SKC|BKN|SCT|FEW|OVC|NSC)([0-9]{3})?"
@@ -918,3 +920,36 @@ def _fetch(stationid, proxy=None, baseurl=None):
         raise NetworkException(
             "Could not fetch METAR report: %s" % (fn.status_code))
     return stationid, reporturl, fn.text.strip()
+
+
+
+
+if __name__ == "__main__":
+
+    import sys
+
+    if len(sys.argv) != 2 or sys.argv[1] == "--help":
+        print("Usage: %s <station id>\n" % sys.argv[0], file=sys.stderr)
+        print("Station IDs can be found at: https://www.aviationweather.gov/metar\n", file=sys.stderr)
+        sys.exit(1)
+
+    elif (sys.argv[1] == "--version"):
+        print("%s pymetar lib v%s" % (sys.argv[0], __version__))
+        sys.exit(0)
+
+    try:
+        wr = FetchReport(sys.argv[1])
+    except Exception as e:
+        sys.stderr.write("Something went wrong when fetching the report.\n")
+        sys.stderr.write("These usually are transient problems if the station ")
+        sys.stderr.write("ID is valid. \nThe error encountered was:\n")
+        sys.stderr.write(str(e) + "\n")
+        sys.exit(1)
+
+    wr.ParseReport()
+
+    print("\n-------- Properties --------")
+    for k, v in ((k, getattr(wr, k)) for k in dir(wr)):
+        if k != "FullReport" and k[0] != '_' and not callable(v):
+            print("%s: %s" % (k, v))
+    print("------ End Properties ------")
