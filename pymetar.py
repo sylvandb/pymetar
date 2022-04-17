@@ -529,6 +529,22 @@ class WeatherReport:
         return self._metar_to_iso8601(self.Time)
 
     @property
+    def ApparentTemperature(self):
+        """ australian apparent temperature aka heat index, cf. wind chill reference """
+        C = self.TemperatureCelsius
+        mps = self.WindSpeed
+        rh = self.Humidity
+        if C is not None and mps is not None and rh is not None:
+            e = rh / 100 * 6.105 * 2.71828 ** ((17.27 * C) / (237.7 + C))
+            return C + 0.33 * e - 0.7 * mps - 4.0
+
+    @property
+    def ApparentTemperatureF(self):
+        C = self.ApparentTemperature
+        if C is not None:
+            return C * 1.8 + 32
+
+    @property
     def Windchill(self):
         """
         wind chill in degrees Celsius

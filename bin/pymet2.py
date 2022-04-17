@@ -61,6 +61,8 @@ print("Pixmap: %s" % (pr.Pixmap,))
 print("Cloudtype: %s" % (pr.Cloudtype,))
 print("Windchill: %s" % (pr.Windchill,))
 print("WindchillF: %s" % (pr.WindchillF,))
+print("ApparentTemperature: %s" % (pr.ApparentTemperature,))
+print("ApparentTemperatureF: %s" % (pr.ApparentTemperatureF,))
 print("Cloudinfo: %r" % (pr.Cloudinfo,))
 print("Conditions: %r" % (pr.Conditions,))
 
