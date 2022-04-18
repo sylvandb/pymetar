@@ -34,27 +34,28 @@ print("Weather report for %s (%s) as of %s" %
 print("Values of \"None\" indicate that the value is missing from the report.")
 print("Temperature: %s C / %s F" %
       (pr.TemperatureCelsius, pr.TemperatureFahrenheit))
-if pr.Windchill and pr.WindchillF:
+if pr.WindchillCelsius and pr.WindchillFahrenheit:
     print("Wind chill: %.2f C / %.2f F" %
-          (pr.Windchill, pr.WindchillF))
+          (pr.WindchillCelsius, pr.WindchillFahrenheit))
 
 print("Rel. Humidity: %s%%" % (pr.Humidity))
-if pr.WindSpeed is not None:
+if pr.WindSpeedMPS is not None:
     print("Wind speed: %0.2f m/s (%i Bft, %0.2f knots)" %
-          (pr.WindSpeed, pr.WindSpeedBeaufort,
+          (pr.WindSpeedMPS, pr.WindSpeedBeaufort,
            pr.WindSpeedKnots))
 else:
     print("Wind speed: None")
 
 print("Wind direction: %s deg (%s)" %
       (pr.WindDirection, pr.WindCompass))
-if pr.Pressure is not None:
-    print("Pressure: %s hPa" % (int(pr.Pressure)))
+if pr.PressurehPa is not None:
+    print("Pressure: %s hPa" % (pr.PressurehPa,))
 else:
     print("Pressure: None")
 
 print("Dew Point: %s C / %s F" %
-      (pr.DewPointCelsius, pr.DewPointFahrenheit))
-print("Weather: %s" % (pr.Weather))
-print("Cloudtype: %s" % (pr.Cloudtype))
-print("Sky Conditions: %s" % (pr.SkyConditions))
+      (pr.DewPointCelsius, pr.DewPointFahrenheit,))
+print("Weather: %s" % (pr.Weather,))
+print("Cloudtype: %s" % (pr.Cloudtype,))
+print("Sky Conditions: %s" % (pr.SkyConditions,))
+print("as of: %s" % (pr.Time,))

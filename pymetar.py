@@ -367,23 +367,24 @@ class WeatherReport:
         self.parsed = False
         # initialize all
         properties = [
+            # set by constructor
             'FullReport', 'ReportURL', 'StationID',
+            # set by parser
             'StationName', 'StationCity', 'StationCountry',
             'StationLatitude', 'StationLongitude', 'StationAltitude',
-            'Cycle', 'Time', 'Weather',
+            'Cycle', 'Time', 'Weather', 'Humidity', 'Pixmap',
             'TemperatureCelsius', 'TemperatureFahrenheit',
             'DewPointCelsius', 'DewPointFahrenheit',
-            'Humidity',
             'WindSpeedMilesPerHour', 'WindSpeedKnots',
             'WindDirection', 'WindCompass',
-            'VisibilityMiles',
-            'Pressure', 'PressureInHg',
-            'RawMetarCode',
-            'SkyConditions', 'Cloudinfo', 'Conditions', 'Cloudtype',
-            'Pixmap',
+            'VisibilityMiles', 'PressurehPa', 'PressureInHg', 'RawMetarCode',
+            'SkyConditions', 'Conditions', 'Cloudinfo', 'Cloudtype',
+            # internal use
             '_w_chill', '_w_chillf',
         ]
         for p in properties:
+            if hasattr(self, p):
+                raise KeyError("Duplicate property: %s" % (p,))
             setattr(self, p, None)
         """ the wind speed in knots """
         """ wind direction in degrees.  """
@@ -461,7 +462,7 @@ class WeatherReport:
         return self.PressureInHg * 25.4000
 
     @property
-    def WindSpeed(self):
+    def WindSpeedMPS(self):
         """ the wind speed in meters per second.  """
         if self.WindSpeedMilesPerHour is not None:
             return self.WindSpeedMilesPerHour * 0.44704
@@ -472,7 +473,7 @@ class WeatherReport:
         the wind speed in the Beaufort scale
         cf. https://en.wikipedia.org/wiki/Beaufort_scale
         """
-        w = self.WindSpeed
+        w = self.WindSpeedMPS
         if w is not None:
             return round((w / 0.8359648) ** (2 / 3.0))
 
@@ -531,23 +532,23 @@ class WeatherReport:
         return self._metar_to_iso8601(self.Time)
 
     @property
-    def ApparentTemperature(self):
+    def ApparentTemperatureCelsius(self):
         """ australian apparent temperature aka heat index, cf. wind chill reference """
         C = self.TemperatureCelsius
-        mps = self.WindSpeed
+        mps = self.WindSpeedMPS
         rh = self.Humidity
         if C is not None and mps is not None and rh is not None:
             e = rh / 100 * 6.105 * 2.71828 ** ((17.27 * C) / (237.7 + C))
             return C + 0.33 * e - 0.7 * mps - 4.0
 
     @property
-    def ApparentTemperatureF(self):
-        C = self.ApparentTemperature
+    def ApparentTemperatureFahrenheit(self):
+        C = self.ApparentTemperatureCelsius
         if C is not None:
             return C * 1.8 + 32
 
     @property
-    def Windchill(self):
+    def WindchillCelsius(self):
         """
         wind chill in degrees Celsius
         cf. https://en.wikipedia.org/wiki/Wind_chill - North American wind chill index
@@ -555,14 +556,14 @@ class WeatherReport:
         return self._calc_w_chill() if self._w_chill is None else self._w_chill
 
     @property
-    def WindchillF(self):
+    def WindchillFahrenheit(self):
         """ wind chill in degrees Fahrenheit """
         return self._calc_w_chillf() if self._w_chillf is None else self._w_chillf
 
 
     def _calc_w_chill(self):
         C = self.TemperatureCelsius
-        ws = self.WindSpeed
+        ws = self.WindSpeedMPS
         kph = (ws or 0) * 3.6
         if C is not None and ws is not None and C <= 10 and kph > 4.8:
             self._w_chill = (13.12 + 0.6215 * C -
@@ -830,7 +831,7 @@ class WeatherReport:
             elif header == "Pressure (altimeter)":
                 press = data.split()
                 self.PressureInHg = float(press[0])
-                self.Pressure = float(press[-2][1:])
+                self.PressurehPa = float(press[-2][1:])
 
             # short weather desc. ("rain", "mist", ...)
             elif header == "Weather":
@@ -940,10 +941,11 @@ if __name__ == "__main__":
     try:
         wr = FetchReport(sys.argv[1])
     except Exception as e:
-        sys.stderr.write("Something went wrong when fetching the report.\n")
-        sys.stderr.write("These usually are transient problems if the station ")
-        sys.stderr.write("ID is valid. \nThe error encountered was:\n")
-        sys.stderr.write(str(e) + "\n")
+        print(
+            "Something went wrong when fetching the report.\n"
+            "These usually are transient problems if the station "
+            "ID is valid. \nThe error encountered was:", file=sys.stderr)
+        print(str(e), file=sys.stderr)
         sys.exit(1)
 
     wr.ParseReport()
