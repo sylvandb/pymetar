@@ -23,6 +23,7 @@ included weather information.
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA."""
 
+import datetime
 import re
 import requests
 
@@ -913,6 +914,9 @@ def _fetch(stationid, proxy=None, baseurl=None):
     baseurl = baseurl or "https://tgftp.nws.noaa.gov/data/observations/metar/decoded/"
     stationid = stationid.upper()
     reporturl = "%s%s.TXT" % (baseurl, stationid)
+    rep = _cache(stationid)
+    if rep:
+        return stationid, reporturl, rep
     if proxy:
         fn = requests.get(reporturl, proxies={'http': proxy, 'https': proxy})
     else:
@@ -920,7 +924,41 @@ def _fetch(stationid, proxy=None, baseurl=None):
     if fn.status_code != 200:
         raise NetworkException(
             "Could not fetch METAR report: %s" % (fn.status_code))
-    return stationid, reporturl, fn.text.strip()
+    rep = fn.text.strip()
+    _cache(stationid, rep)
+    return stationid, reporturl, rep
+
+def _cache(stationid, report=None):
+    cache = '/tmp/%s.TXT' % (stationid,)
+    # save a report
+    if report:
+        with open(cache, 'w') as f:
+            f.write(report)
+        return
+    # load a cached report
+    try:
+        with open(cache, 'r') as f:
+            rep = f.read()
+    except OSError:
+        pass
+    else:
+        lines = iter(rep.split('\n'))
+        l = next(lines)
+        l = next(lines)
+        metardate = l.split("/")[1].strip()
+        repdate = _metar_to_date(metardate)
+        # return the cache version if recent enough (1hr5min)
+        if (datetime.datetime.now(datetime.timezone.utc) - repdate).total_seconds() < 3900:
+            return rep + '\ncache: ' + cache
+
+def _metar_to_date(metardate):
+    """Convert a metar date to a python datetime."""
+    if metardate:
+        (date, hour) = metardate.split()[:2]
+        (year, month, day) = date.split('.')
+        # assuming tz is always 'UTC', aka 'Z'
+        return datetime.datetime.fromisoformat("%s-%s-%s %s:%s:00+00:00" %
+                (year, month, day, hour[:2], hour[2:4]))
 
 
 
@@ -950,8 +988,9 @@ if __name__ == "__main__":
 
     wr.ParseReport()
 
+    print("\n-------- Full Report --------\n%s" % (wr.FullReport,))
     print("\n-------- Properties --------")
     for k, v in ((k, getattr(wr, k)) for k in dir(wr)):
         if k != "FullReport" and k[0] != '_' and not callable(v):
             print("%s: %s" % (k, v))
-    print("------ End Properties ------")
+    print("\n------ End ------")
