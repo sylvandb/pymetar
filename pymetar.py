@@ -441,16 +441,19 @@ class WeatherReport:
         """ cloud type information """
 
 
-    def __init__(self, MetarStationCode=None, url=None, report=None):
+    def __init__(self, MetarStationCode, url=None, report=None):
         """Clear all fields and fill in wanted station id."""
         self._clearallfields()
         self.StationID = MetarStationCode
         self.ReportURL = url
         self.FullReport = report
+        if not self.StationID:
+            raise EmptyIDException("Must specify Metar Station ID Code")
 
     def FetchReport(self):
-        if not self.ReportURL or not self.FullReport:
-            self.StationID, self.ReportURL, self.FullReport = _fetch(self.StationID)
+        station = self.StationID
+        self._clearallfields()
+        self.StationID, self.ReportURL, self.FullReport = _fetch(station)
 
     def ParseReport(self):
         if not self.parsed:
@@ -912,8 +915,7 @@ def MakeReport(self, StationCode, RawReport):
     into an object suitable for ReportParser
     """
     stationid = StationCode.upper()
-    reporturl = "%s%s.TXT" % (baseurl, stationid)
-    return WeatherReport(stationid, url=reporturl, report=RawReport)
+    return WeatherReport(stationid, report=RawReport)
 
 
 def FetchReport(StationCode, proxy=None, baseurl=None):
@@ -943,8 +945,7 @@ def _fetch(stationid, proxy=None, baseurl=None):
     else:
         fn = requests.get(reporturl)
     if fn.status_code != 200:
-        raise NetworkException(
-            "Could not fetch METAR report: %s" % (fn.status_code))
+        raise NetworkException("Could not fetch METAR report: %s" % (fn.status_code))
     rep = fn.text.strip()
     _cache(stationid, rep)
     return stationid, reporturl, rep
@@ -1043,9 +1044,9 @@ if __name__ == "__main__":
         wr = FetchReport(sys.argv[1])
     except Exception as e:
         print(
-            "Something went wrong when fetching the report.\n"
+            "Something went wrong when fetching the report for %s.\n"
             "These usually are transient problems if the station "
-            "ID is valid. \nThe error encountered was:", file=sys.stderr)
+            "ID is valid. \nThe error encountered was:" % sys.argv[1], file=sys.stderr)
         print(str(e), file=sys.stderr)
         sys.exit(1)
 
