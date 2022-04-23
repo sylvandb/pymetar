@@ -376,7 +376,7 @@ class WeatherReport:
             'Cycle', 'Time', 'Weather', 'Humidity', 'Pixmap',
             'TemperatureCelsius', 'TemperatureFahrenheit',
             'DewPointCelsius', 'DewPointFahrenheit',
-            'WindSpeedMilesPerHour', 'WindSpeedKnots',
+            'WindSpeedMilesPerHour', 'WindSpeedKnots', 'WindGustMilesPerHour', 'WindGustKnots',
             'WindDirection', 'WindCompass',
             'VisibilityMiles', 'PressurehPa', 'PressureInHg', 'RawMetarCode',
             'SkyConditions', 'Conditions', 'Cloudinfo', 'Cloudtype',
@@ -462,11 +462,25 @@ class WeatherReport:
         # 1 in = 25.4 mm => 1 inHg = 25.4 mmHg
         return self.PressureInHg * 25.4000
 
+    @staticmethod
+    def _to_mps(w_mph):
+        if w_mph is not None:
+            return w_mph * 0.44704
+
     @property
     def WindSpeedMPS(self):
         """ the wind speed in meters per second.  """
-        if self.WindSpeedMilesPerHour is not None:
-            return self.WindSpeedMilesPerHour * 0.44704
+        return self._to_mps(self.WindSpeedMilesPerHour)
+
+    @property
+    def WindGustMPS(self):
+        """ the wind gust speed in meters per second.  """
+        return self._to_mps(self.WindGustMilesPerHour)
+
+    @staticmethod
+    def _beaufort(w):
+        if w is not None:
+            return round((w / 0.8359648) ** (2 / 3.0))
 
     @property
     def WindSpeedBeaufort(self):
@@ -474,9 +488,15 @@ class WeatherReport:
         the wind speed in the Beaufort scale
         cf. https://en.wikipedia.org/wiki/Beaufort_scale
         """
-        w = self.WindSpeedMPS
-        if w is not None:
-            return round((w / 0.8359648) ** (2 / 3.0))
+        return self._beaufort(self.WindSpeedMPS)
+
+    @property
+    def WindGustBeaufort(self):
+        """
+        the wind gust speed in the Beaufort scale
+        cf. https://en.wikipedia.org/wiki/Beaufort_scale
+        """
+        return self._beaufort(self.WindGustMPS)
 
     @property
     def VisibilityKilometers(self):
@@ -786,26 +806,31 @@ class WeatherReport:
             # wind dir and speed
             elif header == "Wind":
                 if "Calm" in data:
-                    self.WindSpeedKnots = 0.0
-                    self.WindSpeedMilesPerHour = 0.0
-                    self.WindDirection = None
-                    self.WindCompass = None
+                    # Wind: Calm
+                    self.WindSpeedMilesPerHour = self.WindSpeedKnots = 0.0
                 elif "Variable" in data:
-                    speed = data.split(" ", 3)[2]
-                    self.WindSpeedKnots = int(data.split(" ", 5)[4][1:])
-                    self.WindSpeedMilesPerHour = int(speed)
-                    self.WindDirection = None
-                    self.WindCompass = None
+                    # Wind: Variable at 17 MPH (15 KT):0
+                    # will it ever have gusting?
+                    # Wind: Variable at 17 MPH (15 KT) gusting to 24 MPH (21 KT):0
+                    #       0        1  2  3   4   5   6       7  8  9   10  11
+                    fields = data.split()
+                    self.WindSpeedMilesPerHour = int(fields[2])
+                    self.WindSpeedKnots = int(fields[4][1:])
+                    if 'gusting' in fields[6:]:
+                        self.WindGustMilesPerHour = int(fields[8])
+                        self.WindGustKnots = int(fields[10][1:])
                 else:
-                    fields = data.split(" ", 9)[0:9]
-                    comp = fields[2]
-                    deg = fields[3]
-                    speed = fields[6]
-                    speedkt = fields[8][1:]
-                    self.WindDirection = int(deg[1:])
-                    self.WindCompass = comp.strip()
-                    self.WindSpeedKnots = int(speedkt)
-                    self.WindSpeedMilesPerHour = int(speed)
+                    # maybe it would be better to take this from raw line?
+                    # Wind: from the WNW (300 degrees) at 17 MPH (15 KT) gusting to 24 MPH (21 KT):0
+                    #       0    1   2   3    4        5  6  7   8   9   10      11 12 13  14  15
+                    fields = data.split()
+                    self.WindCompass = fields[2].strip()
+                    self.WindDirection = int(fields[3][1:])
+                    self.WindSpeedMilesPerHour = int(fields[6])
+                    self.WindSpeedKnots = int(fields[8][1:])
+                    if 'gusting' in fields[10:]:
+                        self.WindGustMilesPerHour = int(fields[12])
+                        self.WindGustKnots = int(fields[14][1:])
 
             # visibility
             elif header == "Visibility":
