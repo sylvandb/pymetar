@@ -765,22 +765,18 @@ class WeatherReport:
                     rcity = ""
                     rcoun = ""
                     coords = data
-                lat, lng, alt = coords.split()[1:4]
-                # A few jokers out there think O==0
-                lat = lat.replace("O", "0")
-                lng = lng.replace("O", "0")
-                alt = alt.replace("O", "0")
-                try:
-                    alt = int(alt[:-1])  # cut off 'M' for meters
-                except ValueError:
-                    alt = None
-
                 self.StationCity = rcity.strip()[::-1]
                 self.StationCountry = rcoun.strip()[::-1]
                 self.StationName = loc
-                self.StationLatitude = lat
-                self.StationLongitude = lng
-                self.StationAltitude = alt
+                # A few jokers out there think O==0
+                coords = coords.replace("O", "0").split()
+                self.StationLatitude = coords[1]
+                self.StationLongitude = coords[2]
+                # KMAN didn't provide altitude
+                try:
+                    self.StationAltitude = int(coords[3][:-1])  # cut off 'M' for meters
+                except (IndexError, ValueError):
+                    pass
 
             # The line containing date and time of the report
             # We have to make sure that the station ID is *not*
