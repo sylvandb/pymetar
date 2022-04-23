@@ -965,16 +965,58 @@ def _metar_to_date(metardate):
 
 if __name__ == "__main__":
 
+    import os
     import sys
 
-    if len(sys.argv) != 2 or sys.argv[1] == "--help":
+    def usage(ec=0):
         print("Usage: %s <station id>\n" % sys.argv[0], file=sys.stderr)
         print("Station IDs can be found at: https://www.aviationweather.gov/metar\n", file=sys.stderr)
-        sys.exit(1)
+        try:
+            l = fromfile(None)
+        except (FileNotFoundError, IndexError):
+            pass
+        else:
+            print("Bookmarked in ~/.metar:")
+            d = '(default)'
+            for n, s in enumerate(l):
+                s = s.strip()
+                if s:
+                    print("  %d. %s %s" % (n, s, d))
+                d = ''
+        sys.exit(ec)
 
-    elif (sys.argv[1] == "--version"):
+    defaults = []
+    def fromfile(n=0):
+        if not defaults:
+            with open(os.getenv("HOME") + '/.metar', 'r') as f:
+                defaults.extend(f.read().split('\n'))
+        if n is None:
+            if not defaults:
+                raise IndexError("empty ~/.metar")
+            return defaults
+        l = defaults[int(n)]
+        return l.split()[0].strip()
+
+    if "--help" in sys.argv or '-h' in sys.argv:
+        usage()
+
+    if "--version" in sys.argv:
         print("%s pymetar lib v%s" % (sys.argv[0], __version__))
-        sys.exit(0)
+        sys.exit()
+
+    if len(sys.argv) < 2 or (len(sys.argv) == 2 and len(sys.argv[1]) != 4):
+        if sys.argv[1:]:
+            n = sys.argv[1]
+            del sys.argv[1:]
+        else:
+            n = 0
+        try:
+            sys.argv.append(fromfile(n))
+        except (FileNotFoundError, IndexError):
+            usage(1)
+
+    elif len(sys.argv) > 2:
+        usage(1)
 
     try:
         wr = FetchReport(sys.argv[1])
@@ -988,9 +1030,9 @@ if __name__ == "__main__":
 
     wr.ParseReport()
 
-    print("\n-------- Full Report --------\n%s" % (wr.FullReport,))
     print("\n-------- Properties --------")
     for k, v in ((k, getattr(wr, k)) for k in dir(wr)):
         if k != "FullReport" and k[0] != '_' and not callable(v):
             print("%s: %s" % (k, v))
+    print("\n-------- Full Report --------\n%s" % (wr.FullReport,))
     print("\n------ End ------")
